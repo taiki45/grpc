@@ -52,22 +52,34 @@ typedef struct grpc_rb_server {
 
 static void grpc_rb_server_maybe_shutdown_and_notify(grpc_rb_server* server,
                                                      gpr_timespec deadline) {
+  grpc_event shutdown_ev;
   grpc_event ev;
-  void* tag = &ev;
+  void* shutdown_tag = &shutdown_ev; // Dummy tag
+  grpc_completion_queue* queue;
+  queue = grpc_completion_queue_create_for_next(NULL);
+
   if (!server->shutdown_and_notify_done) {
     server->shutdown_and_notify_done = 1;
     if (server->wrapped != NULL) {
-      grpc_server_shutdown_and_notify(server->wrapped, server->queue, tag);
-      ev = rb_completion_queue_pluck(server->queue, tag, deadline, NULL);
+      grpc_server_shutdown_and_notify(server->wrapped, queue, shutdown_tag);
+
+      grpc_completion_queue_shutdown(queue);
+
+      ev = grpc_completion_queue_next(queue, deadline, NULL);
       if (ev.type == GRPC_QUEUE_TIMEOUT) {
         grpc_server_cancel_all_calls(server->wrapped);
-        ev = rb_completion_queue_pluck(
-            server->queue, tag, gpr_inf_future(GPR_CLOCK_REALTIME), NULL);
       }
-      if (ev.type != GRPC_OP_COMPLETE) {
-        gpr_log(GPR_INFO,
-                "GRPC_RUBY: bad grpc_server_shutdown_and_notify result:%d",
-                ev.type);
+
+      // Wait queue items
+      while(1) {
+        ev = grpc_completion_queue_next(queue, deadline, NULL);
+        if (ev.type == GRPC_QUEUE_TIMEOUT || ev.type == GRPC_QUEUE_SHUTDOWN) {
+          return;
+        } else if (ev.type == GRPC_OP_COMPLETE) {
+          return;
+        } else {
+          // Do nothing.
+        }
       }
     }
   }

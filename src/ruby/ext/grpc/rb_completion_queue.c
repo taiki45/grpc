@@ -60,7 +60,6 @@ void grpc_rb_completion_queue_destroy(grpc_completion_queue* cq) {
      that event from the queue, and holds a reference to the Ruby object that
      holds the queue, so we only get to this point if all of those functions
      have completed, and the queue is empty */
-  grpc_completion_queue_shutdown(cq);
   grpc_completion_queue_destroy(cq);
 }
 
