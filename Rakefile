@@ -132,7 +132,7 @@ task 'gem:native' do
 end
 
 # Define dependencies between the suites.
-task 'suite:wrapper' => [:compile, :rubocop]
+task 'suite:wrapper' => [:compile]#, :rubocop]
 task 'suite:idiomatic' => 'suite:wrapper'
 task 'suite:bidi' => 'suite:wrapper'
 task 'suite:server' => 'suite:wrapper'
